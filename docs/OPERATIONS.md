@@ -1,6 +1,6 @@
 # Operations guide
 
-All commands run in Terminal from `~/crm`. If PHP is not the default, use the full path (e.g. `/opt/cpanel/ea-php83/root/usr/bin/php`).
+All commands run from `~/crm` — in Terminal if the host has it, otherwise as a one-time cron job (DEPLOY.md §6). If PHP is not the default, use the full path (e.g. `/opt/cpanel/ea-php83/root/usr/bin/php`).
 
 ## Users and roles
 - New staff sign up at `/register` with their `@paradigmcargo.com` email (other domains are refused). They have no roles until management assigns them.

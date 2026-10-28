@@ -23,11 +23,35 @@ chmod -R ug+rwX "$DEST"/storage "$DEST"/bootstrap/cache
 
 cd "$DEST"
 if [ ! -f .env ]; then
-  echo "!! $DEST/.env is missing — copy .env.example to .env, fill it, then deploy again."; exit 1
+  cp .env.example .env
+  echo "!! Created $DEST/.env from the example. Open it in File Manager, fill DB_* / MAIL_* (and AI_* if ready), then deploy again."; exit 1
 fi
-if command -v composer >/dev/null 2>&1; then COMPOSER="composer"; else COMPOSER="$PHP_BIN $HOME/composer.phar"; fi
+if ! grep -qE '^DB_DATABASE=.+' .env; then
+  echo "!! DB_DATABASE is empty in $DEST/.env — fill the database lines, then deploy again."; exit 1
+fi
+
+# Composer: use the server's if there is one, otherwise download composer.phar once (signature checked). No Terminal needed.
+export COMPOSER_HOME="${COMPOSER_HOME:-$HOME/.composer}"
+if command -v composer >/dev/null 2>&1; then COMPOSER="composer"
+elif [ -x /opt/cpanel/composer/bin/composer ]; then COMPOSER="/opt/cpanel/composer/bin/composer"
+else
+  if [ ! -f "$HOME/composer.phar" ]; then
+    echo "Downloading composer.phar"
+    EXPECTED="$("$PHP_BIN" -r 'echo trim(file_get_contents("https://composer.github.io/installer.sig"));')"
+    "$PHP_BIN" -r 'copy("https://getcomposer.org/installer", getenv("HOME")."/composer-setup.php");'
+    ACTUAL="$("$PHP_BIN" -r 'echo hash_file("sha384", getenv("HOME")."/composer-setup.php");')"
+    if [ "$EXPECTED" != "$ACTUAL" ]; then rm -f "$HOME/composer-setup.php"; echo "!! composer installer signature mismatch"; exit 1; fi
+    "$PHP_BIN" "$HOME/composer-setup.php" --quiet --install-dir="$HOME" --filename=composer.phar
+    rm -f "$HOME/composer-setup.php"
+  fi
+  COMPOSER="$PHP_BIN -d memory_limit=-1 $HOME/composer.phar"
+fi
 $COMPOSER install --no-dev --optimize-autoloader --no-interaction --no-progress
 
+"$PHP_BIN" artisan optimize:clear
+# First deploy only: app key and browser-push keys are generated straight into .env
+grep -qE '^APP_KEY=base64:' .env || "$PHP_BIN" artisan key:generate --force
+grep -qE '^VAPID_PUBLIC_KEY=.+' .env || "$PHP_BIN" artisan webpush:vapid --force
 "$PHP_BIN" artisan down --retry=30 || true
 "$PHP_BIN" artisan migrate --force
 "$PHP_BIN" artisan db:seed --class=Database\\Seeders\\DatabaseSeeder --force   # reference data only (roles, ports, settings) — safe to rerun
