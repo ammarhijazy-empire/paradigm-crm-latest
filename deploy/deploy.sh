@@ -69,7 +69,8 @@ else
 fi
 $COMPOSER install --no-dev --optimize-autoloader --no-interaction --no-progress
 
-"$PHP_BIN" artisan optimize:clear
+# config:clear only: the cache table may not exist before the first migration
+"$PHP_BIN" artisan config:clear
 # First deploy only: app key and browser-push keys are generated straight into .env
 grep -qE '^APP_KEY=base64:' .env || "$PHP_BIN" artisan key:generate --force
 grep -qE '^VAPID_PUBLIC_KEY=.+' .env || "$PHP_BIN" artisan webpush:vapid --force
