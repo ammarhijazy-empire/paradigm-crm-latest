@@ -22,12 +22,33 @@ mkdir -p "$DEST"/storage/app/private "$DEST"/storage/framework/{cache/data,sessi
 chmod -R ug+rwX "$DEST"/storage "$DEST"/bootstrap/cache
 
 cd "$DEST"
+setenv() { # setenv KEY VALUE  — replace or append a line in .env (value without spaces/quotes)
+  if grep -qE "^$1=" .env; then sed -i -E "s|^$1=.*|$1=$2|" .env; else echo "$1=$2" >> .env; fi
+}
 if [ ! -f .env ]; then
   cp .env.example .env
-  echo "!! Created $DEST/.env from the example. Open it in File Manager, fill DB_* / MAIL_* (and AI_* if ready), then deploy again."; exit 1
+  chmod 600 .env
+  echo "Created $DEST/.env from the example."
 fi
-if ! grep -qE '^DB_DATABASE=.+' .env; then
-  echo "!! DB_DATABASE is empty in $DEST/.env — fill the database lines, then deploy again."; exit 1
+if [ -n "${CRM_URL:-}" ]; then setenv APP_URL "$CRM_URL"; fi
+
+# No database configured yet: create one through cPanel's own API with a random password
+# generated here, so no password is ever typed or sent anywhere.
+if ! grep -qE '^DB_DATABASE=[^[:space:]#]+' .env; then
+  command -v uapi >/dev/null || { echo "!! uapi not available — create the database in cPanel and fill DB_* in $DEST/.env"; exit 1; }
+  CP_USER="$(whoami)"; DBN="${CP_USER}_crm"; DBU="${CP_USER}_crm"
+  DBP="$("$PHP_BIN" -r 'echo substr(str_replace(["+","/","="],"",base64_encode(random_bytes(48))),0,32);')"
+  ok() { grep -q '"status":1' <<<"$1"; }
+  R=$(uapi --output=json Mysql create_database name="$DBN"); ok "$R" || grep -q 'already exists' <<<"$R" || { echo "!! create_database: $R"; exit 1; }
+  R=$(uapi --output=json Mysql create_user name="$DBU" password="$DBP")
+  if ! ok "$R"; then
+    grep -q 'already exists' <<<"$R" || { echo "!! create_user: $R"; exit 1; }
+    R=$(uapi --output=json Mysql set_password user="$DBU" password="$DBP"); ok "$R" || { echo "!! set_password: $R"; exit 1; }
+  fi
+  R=$(uapi --output=json Mysql set_privileges_on_database user="$DBU" database="$DBN" privileges='ALL PRIVILEGES'); ok "$R" || { echo "!! privileges: $R"; exit 1; }
+  setenv DB_CONNECTION mysql; setenv DB_HOST localhost; setenv DB_DATABASE "$DBN"; setenv DB_USERNAME "$DBU"; setenv DB_PASSWORD "$DBP"
+  unset DBP
+  echo "Database $DBN and user $DBU created; credentials written to .env"
 fi
 
 # Composer: use the server's if there is one, otherwise download composer.phar once (signature checked). No Terminal needed.
@@ -62,4 +83,12 @@ grep -qE '^VAPID_PUBLIC_KEY=.+' .env || "$PHP_BIN" artisan webpush:vapid --force
 "$PHP_BIN" artisan event:cache
 "$PHP_BIN" artisan queue:restart
 "$PHP_BIN" artisan up
+
+# Primary-domain hosting: serve the app from public_html (kept as a backup folder the first time).
+if [ "${LINK_PUBLIC_HTML:-0}" = "1" ] && [ "$(readlink -f "$HOME/public_html")" != "$(readlink -f "$DEST/public")" ]; then
+  if [ -e "$HOME/public_html" ] && [ ! -L "$HOME/public_html" ]; then mv "$HOME/public_html" "$HOME/public_html.before-crm-$(date +%Y%m%d%H%M%S)"; fi
+  rm -f "$HOME/public_html"
+  ln -s "$DEST/public" "$HOME/public_html"
+  echo "public_html now points to $DEST/public"
+fi
 echo "=== done $(date '+%F %T') ==="

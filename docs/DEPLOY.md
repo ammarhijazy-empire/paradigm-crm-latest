@@ -14,11 +14,11 @@
 Node is **not** needed on the server: the built CSS/JS (`public/build`) is in the repository.
 
 ## 2. First install
-1. **Database:** create database + user, add user to database with all privileges. Note the full names (cPanel prefixes them, e.g. `cpuser_crm`).
-2. **Subdomain:** create `crm.paradigmcargo.com` with document root `crm/public` (folder `~/crm` is created by the deploy).
+1. **Database:** nothing to do — the first deploy creates database `<cpaneluser>_crm` and its user through cPanel's API, with a random password written straight into `.env` (nobody types or sees it). To use your own database instead, fill `DB_*` in `~/crm/.env` before deploying.
+2. **Domain:** the app is served from `public_html` of the account's primary domain (`.cpanel.yml`: `LINK_PUBLIC_HTML=1`; the old `public_html` is kept as `public_html.before-crm-<date>`). Set `CRM_URL` in `.cpanel.yml` to the final address. For a subdomain instead, set `LINK_PUBLIC_HTML=0` and point the subdomain's document root to `crm/public`.
 3. **Clone:** *Git Version Control* → *Create* → clone URL `https://github.com/ammarhijazy-empire/paradigm-crm-latest.git`, repository path `repositories/paradigm-crm-latest`. (Private repo: use a GitHub fine-grained token with read access as the password, or a deploy key.)
-4. **First deploy creates `.env`:** run step 5 once — it stops after copying `.env.example` to `~/crm/.env`. Open that file in *File Manager → Edit*, fill `DB_*`, `MAIL_*`, `APP_URL` (and `AI_*` when ready). Leave `APP_KEY` and `VAPID_*` empty: the next deploy generates them.
-5. **Deploy:** *Git Version Control* → *Manage* → *Pull or Deploy* → **Deploy HEAD Commit** (again after filling `.env`). This runs `.cpanel.yml` → `deploy/deploy.sh`, which copies the code to `~/crm`, runs `composer install --no-dev`, migrations, reference data (roles, ports, settings) and caches. Log: `~/crm-deploy.log`.
+4. **`.env`:** the first deploy creates `~/crm/.env` (mode 600) with the database, `APP_KEY` and push keys filled. Afterwards open it in *File Manager → Edit* to add `MAIL_PASSWORD` (Google app password) and `AI_*`, then deploy again.
+5. **Deploy:** *Git Version Control* → *Manage* → *Pull or Deploy* → **Deploy HEAD Commit**. This runs `.cpanel.yml` → `deploy/deploy.sh`, which copies the code to `~/crm`, runs `composer install --no-dev`, migrations, reference data (roles, ports, settings) and caches. Log: `~/crm-deploy.log`.
    - If your PHP is not the default `php`, add before the bash line in `.cpanel.yml`: `- export PHP_BIN=/opt/cpanel/ea-php83/root/usr/bin/php`.
 6. **Cron (one line, every minute):** *Cron Jobs* → Common settings *Once Per Minute*:
    ```

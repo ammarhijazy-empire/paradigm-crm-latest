@@ -1,7 +1,10 @@
 ---
 # cPanel → Git Version Control → "Deploy HEAD Commit" runs this.
-# The app goes to ~/crm ; the subdomain's document root must be ~/crm/public
+# App folder: ~/crm.  LINK_PUBLIC_HTML=1 serves it from public_html (primary domain).
+# CRM_URL sets APP_URL in .env on each deploy.
 deployment:
   tasks:
     - export DEPLOYPATH=$HOME/crm
+    - export LINK_PUBLIC_HTML=1
+    - export CRM_URL=https://3no.744.mytemp.website
     - /bin/bash deploy/deploy.sh "$DEPLOYPATH"
