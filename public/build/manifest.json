@@ -1,0 +1,35 @@
+{
+  "resources/css/app.css": {
+    "file": "assets/app-CZ032rpr.css",
+    "name": "app",
+    "names": [
+      "app.css"
+    ],
+    "src": "resources/css/app.css",
+    "isEntry": true
+  },
+  "resources/css/bootstrap-ltr.css": {
+    "file": "assets/bootstrap-ltr-CwawXFoc.css",
+    "name": "bootstrap-ltr",
+    "names": [
+      "bootstrap-ltr.css"
+    ],
+    "src": "resources/css/bootstrap-ltr.css",
+    "isEntry": true
+  },
+  "resources/css/bootstrap-rtl.css": {
+    "file": "assets/bootstrap-rtl-BF27iBn0.css",
+    "name": "bootstrap-rtl",
+    "names": [
+      "bootstrap-rtl.css"
+    ],
+    "src": "resources/css/bootstrap-rtl.css",
+    "isEntry": true
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-vK5_jrxb.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true
+  }
+}

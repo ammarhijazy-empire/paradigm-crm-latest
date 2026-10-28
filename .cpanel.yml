@@ -1,0 +1,7 @@
+---
+# cPanel → Git Version Control → "Deploy HEAD Commit" runs this.
+# The app goes to ~/crm ; the subdomain's document root must be ~/crm/public
+deployment:
+  tasks:
+    - export DEPLOYPATH=$HOME/crm
+    - /bin/bash deploy/deploy.sh "$DEPLOYPATH"
