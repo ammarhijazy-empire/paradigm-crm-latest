@@ -2,6 +2,7 @@
 # Paradigm Cargo CRM — deploy from the cPanel repository clone into the live folder.
 # Usage: deploy/deploy.sh /home/USER/crm      (PHP_BIN can be overridden, e.g. PHP_BIN=/opt/cpanel/ea-php83/root/usr/bin/php)
 set -euo pipefail
+umask 022
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
 DEST="${1:-$HOME/crm}"
 PHP_BIN="${PHP_BIN:-$(command -v ea-php83 || command -v php)}"
@@ -85,11 +86,21 @@ grep -qE '^VAPID_PUBLIC_KEY=.+' .env || "$PHP_BIN" artisan webpush:vapid --force
 "$PHP_BIN" artisan queue:restart
 "$PHP_BIN" artisan up
 
-# Primary-domain hosting: serve the app from public_html (kept as a backup folder the first time).
-if [ "${LINK_PUBLIC_HTML:-0}" = "1" ] && [ "$(readlink -f "$HOME/public_html")" != "$(readlink -f "$DEST/public")" ]; then
-  if [ -e "$HOME/public_html" ] && [ ! -L "$HOME/public_html" ]; then mv "$HOME/public_html" "$HOME/public_html.before-crm-$(date +%Y%m%d%H%M%S)"; fi
-  rm -f "$HOME/public_html"
-  ln -s "$DEST/public" "$HOME/public_html"
-  echo "public_html now points to $DEST/public"
+# Primary-domain hosting: copy the public files into the real public_html folder (keeps cPanel's own
+# owner/group/permissions on it); index.php points to the app in $DEST. Code and .env stay outside the web root.
+if [ "${PUBLISH_PUBLIC_HTML:-0}" = "1" ]; then
+  PH="$HOME/public_html"
+  if [ -L "$PH" ]; then   # undo the older symlink layout
+    rm -f "$PH"
+    B="$(ls -d "$HOME"/public_html.before-crm-* 2>/dev/null | head -1 || true)"
+    if [ -n "$B" ]; then mv "$B" "$PH"; else mkdir -p "$PH"; chmod 750 "$PH"; fi
+  fi
+  if [ ! -f "$PH/.crm-managed" ]; then   # first time: keep a copy of what was there
+    mkdir -p "$HOME/public_html.before-crm" && cp -a "$PH"/. "$HOME/public_html.before-crm"/ && touch "$PH/.crm-managed"
+  fi
+  rsync -a --delete --exclude 'cgi-bin' --exclude '.well-known' --exclude '.crm-managed' --exclude 'index.php' "$DEST/public/" "$PH/"
+  sed "s#__DIR__.'/../#'$DEST/#g" "$DEST/public/index.php" > "$PH/index.php"
+  chmod 644 "$PH/index.php"
+  echo "public_html updated from $DEST/public"
 fi
 echo "=== done $(date '+%F %T') ==="

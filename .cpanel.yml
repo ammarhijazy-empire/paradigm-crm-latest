@@ -1,10 +1,10 @@
 ---
 # cPanel → Git Version Control → "Deploy HEAD Commit" runs this.
-# App folder: ~/crm.  LINK_PUBLIC_HTML=1 serves it from public_html (primary domain).
+# App folder: ~/crm.  PUBLISH_PUBLIC_HTML=1 copies the public files into public_html (primary domain).
 # CRM_URL sets APP_URL in .env on each deploy.
 deployment:
   tasks:
     - export DEPLOYPATH=$HOME/crm
-    - export LINK_PUBLIC_HTML=1
+    - export PUBLISH_PUBLIC_HTML=1
     - export CRM_URL=https://3no.744.mytemp.website
     - /bin/bash deploy/deploy.sh "$DEPLOYPATH"
